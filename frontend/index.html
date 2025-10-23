@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardMan - Credit Card Manager</title>
+    <script src="config.js"></script>
+    <script src="openai-helper.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding-bottom: 70px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 15px;
+            padding-bottom: 20px;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+            padding-top: 10px;
+        }
+
+        h1 {
+            font-size: 2em;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .subtitle {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .nav-item {
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .nav-item:hover {
+            background: #f5f5f5;
+        }
+
+        .nav-item.active {
+            color: #667eea;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+        }
+
+        .nav-label {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .section-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            overflow-x: auto;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px 15px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            white-space: nowrap;
+            min-width: 100px;
+        }
+
+        .tab:hover {
+            background: #e0e0e0;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .cashback-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .cashback-item {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 8px;
+            align-items: start;
+        }
+
+        .cashback-item input[type="text"] {
+            min-height: 50px;
+        }
+
+        .cashback-item input[type="number"] {
+            width: 80px;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .btn-remove {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn-add {
+            background: #51cf66;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 15px;
+        }
+
+        .upload-area:hover {
+            background: #f8f9ff;
+        }
+
+        .upload-area.dragover {
+            background: #e8ebff;
+            border-color: #4a5dcc;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .upload-hint {
+            font-size: 0.8em;
+            color: #999;
+        }
+
+        #imagePreview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .ai-search-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .ai-search-container input {
+            flex: 1;
+        }
+
+        .btn-search {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .btn-search:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .result-card {
+            background: #f8f9ff;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+
+        .result-title {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .result-bank {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .cashback-info {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .cashback-category {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .cashback-rate {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 30px;
+            color: #667eea;
+            font-size: 1em;
+        }
+
+        .alert {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: 500;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .card-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .card-item {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        .card-item-title {
+            font-weight: 700;
+            font-size: 1.1em;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .card-item-bank {
+            color: #667eea;
+            font-weight: 600;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .card-item-cashback {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .btn-delete {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #95a5a6;
+        }
+
+        .empty-state-icon {
+            font-size: 3em;
+            margin-bottom: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .cashback-item {
+                grid-template-columns: 1fr;
+            }
+
+            .cashback-item input[type="number"] {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💳 CardMan</h1>
+            <div class="subtitle">Smart Credit Card Manager</div>
+        </header>
+
+        <div id="alertContainer"></div>
+
+        <!-- Page 1: Home -->
+        <div id="homePage" class="page active">
+            <!-- Best Card Recommendation Section -->
+            <div class="card">
+                <h2 class="section-title">🎯 Find Best Card for Purchase</h2>
+
+                <div class="tabs">
+                    <button class="tab active" onclick="switchRecommendTab('text')">📝 Text</button>
+                    <button class="tab" onclick="switchRecommendTab('receipt')">🧾 Receipt</button>
+                </div>
+
+                <!-- Text Input Tab -->
+                <div id="recommendTextTab" class="tab-content active">
+                    <div class="form-group">
+                        <label for="purchaseInput">What are you buying?</label>
+                        <input type="text" id="purchaseInput" placeholder="e.g., Dinner at Chipotle, Gas at Shell, Flight to NYC">
+                    </div>
+                    <button class="btn-primary" onclick="recommendFromText()">🔍 Find Best Card</button>
+                    <div id="recommendTextResult"></div>
+                </div>
+
+                <!-- Receipt Image Tab -->
+                <div id="recommendReceiptTab" class="tab-content">
+                    <div class="upload-area" id="receiptUploadArea" onclick="document.getElementById('receiptInput').click()">
+                        <div class="upload-icon">🧾</div>
+                        <div class="upload-text">Upload receipt or purchase photo</div>
+                        <div class="upload-hint">AI will analyze and recommend best card</div>
+                    </div>
+                    <input type="file" id="receiptInput" accept="image/*" capture="camera" style="display: none;">
+                    <img id="receiptPreview" alt="Preview" style="max-width: 100%; max-height: 300px; border-radius: 10px; margin: 15px 0; display: none;">
+                    <button id="analyzeReceiptBtn" class="btn-primary" onclick="recommendFromReceipt()" style="display: none;">
+                        🔍 Analyze & Recommend
+                    </button>
+                    <div id="recommendReceiptResult"></div>
+                </div>
+            </div>
+
+            <!-- All Cards Display -->
+            <div class="card">
+                <h2 class="section-title">📊 All Cards</h2>
+                <div id="allCardsContainer">
+                    <div class="loading">Loading cards...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 2: Card Management -->
+        <div id="cardsPage" class="page">
+            <!-- My Wallet Section -->
+            <div class="card">
+                <h2 class="section-title">💼 My Wallet</h2>
+                <div id="myCardsContainer">
+                    <div class="loading">Loading your cards...</div>
+                </div>
+            </div>
+
+            <!-- Add Card Section -->
+            <div class="card">
+                <h2 class="section-title">➕ Add New Card</h2>
+
+                <!-- Tabs: Photo, AI Search, Manual -->
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('photo')">📷 Photo</button>
+                    <button class="tab" onclick="switchTab('aiSearch')">🤖 AI Search</button>
+                    <button class="tab" onclick="switchTab('manual')">✍️ Manual</button>
+                </div>
+
+                <!-- Tab 1: Photo Upload -->
+                <div id="photoTab" class="tab-content active">
+                    <div class="upload-area" id="uploadArea" onclick="document.getElementById('imageInput').click()">
+                        <div class="upload-icon">📸</div>
+                        <div class="upload-text">Tap to take photo or upload</div>
+                        <div class="upload-hint">Supports JPG, PNG (Max 5MB)</div>
+                    </div>
+                    <input type="file" id="imageInput" accept="image/*" capture="camera" style="display: none;">
+                    <img id="imagePreview" alt="Preview">
+                    <button id="analyzeImageBtn" class="btn-primary" onclick="analyzeImage()" style="display: none;">
+                        🔍 Analyze Image
+                    </button>
+                    <div id="imageAnalysisResult"></div>
+                </div>
+
+                <!-- Tab 2: AI Search -->
+                <div id="aiSearchTab" class="tab-content">
+                    <div class="ai-search-container">
+                        <input type="text" id="aiSearchInput" placeholder="Enter card name (e.g., Chase Freedom Unlimited)">
+                        <button id="aiSearchBtn" class="btn-search" onclick="searchCardWithAI()">🔍 Search</button>
+                    </div>
+                    <div id="aiSearchResult"></div>
+                </div>
+
+                <!-- Tab 3: Manual Input -->
+                <div id="manualTab" class="tab-content">
+                    <form id="cardForm" onsubmit="handleSubmit(event)">
+                        <div class="form-group">
+                            <label for="cardName">Card Name *</label>
+                            <input type="text" id="cardName" required placeholder="e.g., Chase Freedom Unlimited">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="bankName">Bank Name *</label>
+                            <input type="text" id="bankName" required placeholder="e.g., Chase Bank">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cardType">Card Type *</label>
+                            <select id="cardType" required>
+                                <option value="">Select Type</option>
+                                <option value="Credit Card">Credit Card</option>
+                                <option value="Debit Card">Debit Card</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Cashback Categories</label>
+                            <div id="cashbackList" class="cashback-list"></div>
+                            <button type="button" class="btn-add" onclick="addCashbackCategory()">+ Add Category</button>
+                        </div>
+
+                        <button type="submit" class="btn-primary">💾 Save Card</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <button class="nav-item active" onclick="switchPage('home')">
+            <div class="nav-icon">🏠</div>
+            <div class="nav-label">Home</div>
+        </button>
+        <button class="nav-item" onclick="switchPage('cards')">
+            <div class="nav-icon">💳</div>
+            <div class="nav-label">My Cards</div>
+        </button>
+    </div>
+
+    <script>
+        let currentImageFile = null;
+        let currentReceiptFile = null;
+        let cashbackCounter = 0;
+        let allCardsCache = []; // Cache all cards for recommendations
+
+        // ========== Recommendation Tab Switching ==========
+        function switchRecommendTab(tabName) {
+            const tabs = document.querySelectorAll('#homePage .tab');
+            const contents = document.querySelectorAll('#homePage .tab-content');
+
+            tabs.forEach(tab => tab.classList.remove('active'));
+            contents.forEach(content => content.classList.remove('active'));
+
+            if (tabName === 'text') {
+                tabs[0].classList.add('active');
+                document.getElementById('recommendTextTab').classList.add('active');
+            } else if (tabName === 'receipt') {
+                tabs[1].classList.add('active');
+                document.getElementById('recommendReceiptTab').classList.add('active');
+            }
+        }
+
+        // ========== Receipt Upload Handling ==========
+        const receiptInput = document.getElementById('receiptInput');
+        const receiptPreview = document.getElementById('receiptPreview');
+        const analyzeReceiptBtn = document.getElementById('analyzeReceiptBtn');
+        const receiptUploadArea = document.getElementById('receiptUploadArea');
+
+        receiptInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > 5 * 1024 * 1024) {
+                    showAlert('Image size must be less than 5MB', 'error');
+                    return;
+                }
+
+                currentReceiptFile = file;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    receiptPreview.src = e.target.result;
+                    receiptPreview.style.display = 'block';
+                    analyzeReceiptBtn.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // ========== Recommend from Text ==========
+        async function recommendFromText() {
+            const input = document.getElementById('purchaseInput');
+            const resultContainer = document.getElementById('recommendTextResult');
+            const purchaseDescription = input.value.trim();
+
+            if (!purchaseDescription) {
+                showAlert('Please enter a purchase description', 'error');
+                return;
+            }
+
+            if (allCardsCache.length === 0) {
+                showAlert('No cards found. Please add cards first.', 'error');
+                return;
+            }
+
+            resultContainer.innerHTML = '<div class="loading">🤔 AI is analyzing and finding best card...</div>';
+
+            try {
+                const recommendation = await recommendBestCard(allCardsCache, purchaseDescription);
+                displayRecommendation(recommendation, resultContainer);
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Failed to get recommendation: ' + error.message, 'error');
+                resultContainer.innerHTML = '';
+            }
+        }
+
+        // ========== Recommend from Receipt ==========
+        async function recommendFromReceipt() {
+            const resultContainer = document.getElementById('recommendReceiptResult');
+
+            if (!currentReceiptFile) {
+                showAlert('Please upload a receipt first', 'error');
+                return;
+            }
+
+            if (allCardsCache.length === 0) {
+                showAlert('No cards found. Please add cards first.', 'error');
+                return;
+            }
+
+            resultContainer.innerHTML = '<div class="loading">🤔 AI is analyzing receipt and finding best card...</div>';
+
+            try {
+                const base64Image = await fileToBase64(currentReceiptFile);
+                const recommendation = await recommendCardFromImage(base64Image, allCardsCache);
+                displayRecommendation(recommendation, resultContainer);
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Failed to analyze receipt: ' + error.message, 'error');
+                resultContainer.innerHTML = '';
+            }
+        }
+
+        // ========== Display Recommendation ==========
+        function displayRecommendation(recommendation, container) {
+            container.innerHTML = `
+                <div class="result-card" style="margin-top: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <div style="font-size: 1.5em; font-weight: 700; margin-bottom: 10px;">
+                        💳 ${recommendation.recommended_card}
+                    </div>
+
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <div style="font-size: 0.9em; opacity: 0.9; margin-bottom: 5px;">Category</div>
+                        <div style="font-size: 1.2em; font-weight: 600;">${recommendation.purchase_category || 'N/A'}</div>
+                    </div>
+
+                    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <div style="font-size: 0.9em; opacity: 0.9; margin-bottom: 5px;">Cashback Rate</div>
+                        <div style="font-size: 1.5em; font-weight: 700;">${recommendation.cashback_rate || 'N/A'}</div>
+                    </div>
+
+                    ${recommendation.purchase_description ? `
+                        <div style="margin-bottom: 15px;">
+                            <div style="font-size: 0.9em; opacity: 0.9; margin-bottom: 5px;">Purchase</div>
+                            <div>${recommendation.purchase_description}</div>
+                        </div>
+                    ` : ''}
+
+                    ${recommendation.estimated_cashback ? `
+                        <div style="background: rgba(255,255,255,0.3); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="font-size: 0.9em; opacity: 0.9; margin-bottom: 5px;">Estimated Cashback</div>
+                            <div style="font-size: 1.3em; font-weight: 700;">💰 ${recommendation.estimated_cashback}</div>
+                        </div>
+                    ` : ''}
+
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.3);">
+                        <div style="font-size: 0.9em; opacity: 0.9; margin-bottom: 5px;">Why this card?</div>
+                        <div style="font-size: 0.95em; line-height: 1.5;">${recommendation.reasoning || 'Best match for this purchase'}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ========== Page Navigation ==========
+        function switchPage(pageName) {
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+
+            if (pageName === 'home') {
+                document.getElementById('homePage').classList.add('active');
+                document.querySelectorAll('.nav-item')[0].classList.add('active');
+                loadAllCards();
+            } else if (pageName === 'cards') {
+                document.getElementById('cardsPage').classList.add('active');
+                document.querySelectorAll('.nav-item')[1].classList.add('active');
+                loadMyCards();
+            }
+        }
+
+        // ========== Tab Switching ==========
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            if (tabName === 'photo') {
+                document.querySelectorAll('.tab')[0].classList.add('active');
+                document.getElementById('photoTab').classList.add('active');
+            } else if (tabName === 'aiSearch') {
+                document.querySelectorAll('.tab')[1].classList.add('active');
+                document.getElementById('aiSearchTab').classList.add('active');
+            } else if (tabName === 'manual') {
+                document.querySelectorAll('.tab')[2].classList.add('active');
+                document.getElementById('manualTab').classList.add('active');
+            }
+        }
+
+        // ========== Alert Functions ==========
+        function showAlert(message, type = 'success') {
+            const container = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            container.appendChild(alert);
+
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        // ========== Photo Upload Handling ==========
+        const imageInput = document.getElementById('imageInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const analyzeBtn = document.getElementById('analyzeImageBtn');
+        const uploadArea = document.getElementById('uploadArea');
+
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > 5 * 1024 * 1024) {
+                    showAlert('Image size must be less than 5MB', 'error');
+                    return;
+                }
+
+                currentImageFile = file;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                    analyzeBtn.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                imageInput.files = e.dataTransfer.files;
+                imageInput.dispatchEvent(new Event('change'));
+            }
+        });
+
+        // ========== AI Image Analysis ==========
+        async function analyzeImage() {
+            const analyzeBtn = document.getElementById('analyzeImageBtn');
+            const resultContainer = document.getElementById('imageAnalysisResult');
+
+            if (!currentImageFile) {
+                showAlert('Please select an image first', 'error');
+                return;
+            }
+
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = '🔍 Analyzing...';
+            resultContainer.innerHTML = '<div class="loading">AI is analyzing your card image...</div>';
+
+            try {
+                // Convert image to base64
+                const base64Image = await fileToBase64(currentImageFile);
+
+                // Call OpenAI API
+                const aiResponse = await analyzeCardImage(base64Image);
+
+                // Display result
+                displayAIResult(aiResponse, resultContainer);
+
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Failed to analyze image: ' + error.message, 'error');
+                resultContainer.innerHTML = '';
+            } finally {
+                analyzeBtn.disabled = false;
+                analyzeBtn.textContent = '🔍 Analyze Image';
+            }
+        }
+
+        // Helper function: file to base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        // ========== AI Card Search ==========
+        async function searchCardWithAI() {
+            const searchInput = document.getElementById('aiSearchInput');
+            const searchBtn = document.getElementById('aiSearchBtn');
+            const resultContainer = document.getElementById('aiSearchResult');
+
+            const cardName = searchInput.value.trim();
+
+            if (!cardName) {
+                showAlert('Please enter a card name', 'error');
+                return;
+            }
+
+            searchBtn.disabled = true;
+            searchBtn.textContent = '🔍 Searching...';
+            resultContainer.innerHTML = '<div class="loading">AI is searching for card information...</div>';
+
+            try {
+                // Call OpenAI API
+                const aiResponse = await searchCardWithOpenAI(cardName);
+
+                // Display result
+                displayAIResult(aiResponse, resultContainer);
+
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Failed to search: ' + error.message, 'error');
+                resultContainer.innerHTML = '';
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = '🔍 Search';
+            }
+        }
+
+        // ========== Display AI Result ==========
+        function displayAIResult(data, container) {
+            const cashbackHTML = data.cashback_categories.map(cat => `
+                <div class="cashback-info">
+                    <div class="cashback-category">${cat.category}</div>
+                    <div class="cashback-rate">${cat.rate}</div>
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="result-card">
+                    <div class="result-title">${data.card_name}</div>
+                    <div class="result-bank">${data.issuer}</div>
+
+                    <div style="margin-top: 15px;">
+                        <strong>Cashback Categories:</strong>
+                        <div style="margin-top: 10px;">
+                            ${cashbackHTML}
+                        </div>
+                    </div>
+
+                    ${data.notes ? `<div style="margin-top: 15px; color: #666; font-size: 0.9em;">${data.notes}</div>` : ''}
+
+                    <button class="btn-primary" style="margin-top: 20px;"
+                            onclick='saveAIResult(${JSON.stringify(data).replace(/'/g, "\\'")})'>
+                        💾 Save to Database
+                    </button>
+                </div>
+            `;
+        }
+
+        // ========== Save AI Result to Database ==========
+        async function saveAIResult(aiResponse) {
+            console.log('=== saveAIResult 开始 ===');
+            console.log('AI Response:', aiResponse);
+
+            try {
+                // Convert format
+                console.log('步骤 1: 转换格式...');
+                const cardData = convertAIResponseToCardData(aiResponse);
+                console.log('转换后的数据:', cardData);
+
+                // Validate data before sending
+                if (!cardData.card_id || !cardData.card_name || !cardData.bank) {
+                    throw new Error('转换后的数据缺少必需字段');
+                }
+
+                // Save to DynamoDB
+                console.log('步骤 2: 保存到数据库...');
+                await createCard(cardData);
+
+                console.log('✅ 保存成功!');
+                showAlert('Card saved successfully!', 'success');
+
+                // Clear results
+                document.getElementById('aiSearchResult').innerHTML = '';
+                document.getElementById('imageAnalysisResult').innerHTML = '';
+                document.getElementById('aiSearchInput').value = '';
+                if (imagePreview.style.display === 'block') {
+                    imagePreview.style.display = 'none';
+                    analyzeBtn.style.display = 'none';
+                    currentImageFile = null;
+                }
+
+                // Reload card lists
+                loadAllCards();
+                loadMyCards();
+
+            } catch (error) {
+                console.error('❌ saveAIResult 错误:', error);
+                console.error('错误堆栈:', error.stack);
+                showAlert('Failed to save card: ' + error.message, 'error');
+            }
+        }
+
+        // ========== Manual Card Management ==========
+        function addCashbackCategory() {
+            const list = document.getElementById('cashbackList');
+            const id = cashbackCounter++;
+
+            const item = document.createElement('div');
+            item.className = 'cashback-item';
+            item.id = `cashback-${id}`;
+            item.innerHTML = `
+                <input type="text" placeholder="Category (e.g., Dining, Gas)" data-category="${id}">
+                <input type="number" step="0.01" min="0" max="100" placeholder="%" data-rate="${id}">
+                <button type="button" class="btn-remove" onclick="removeCashbackCategory(${id})">✕</button>
+            `;
+
+            list.appendChild(item);
+        }
+
+        function removeCashbackCategory(id) {
+            document.getElementById(`cashback-${id}`).remove();
+        }
+
+        async function handleSubmit(event) {
+            event.preventDefault();
+
+            const cardName = document.getElementById('cardName').value.trim();
+            const bankName = document.getElementById('bankName').value.trim();
+            const cardType = document.getElementById('cardType').value;
+
+            const cashbackCategories = {};
+            document.querySelectorAll('.cashback-item').forEach(item => {
+                const categoryInput = item.querySelector('[data-category]');
+                const rateInput = item.querySelector('[data-rate]');
+                const category = categoryInput.value.trim();
+                const rate = parseFloat(rateInput.value);
+
+                if (category && !isNaN(rate)) {
+                    const key = category.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '-');
+                    cashbackCategories[key] = {
+                        rate: rate,
+                        description: `${category} - ${rate}%`
+                    };
+                }
+            });
+
+            const cardData = {
+                card_id: cardName.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '-'),
+                card_name: cardName,
+                bank: bankName,
+                card_type: cardType,
+                cashback_categories: cashbackCategories
+            };
+
+            try {
+                await createCard(cardData);
+                showAlert('Card added successfully!', 'success');
+                document.getElementById('cardForm').reset();
+                document.getElementById('cashbackList').innerHTML = '';
+                loadAllCards();
+                loadMyCards();
+            } catch (error) {
+                showAlert('Failed to add card: ' + error.message, 'error');
+            }
+        }
+
+        // ========== DynamoDB API Functions ==========
+        async function createCard(cardData) {
+            // Convert all numbers to strings to avoid DynamoDB Float error
+            function convertNumbersToStrings(obj) {
+                if (typeof obj === 'number') {
+                    return obj.toString();
+                } else if (Array.isArray(obj)) {
+                    return obj.map(convertNumbersToStrings);
+                } else if (obj !== null && typeof obj === 'object') {
+                    const converted = {};
+                    for (const key in obj) {
+                        converted[key] = convertNumbersToStrings(obj[key]);
+                    }
+                    return converted;
+                }
+                return obj;
+            }
+
+            const convertedData = convertNumbersToStrings(cardData);
+            console.log('createCard - 原始数据:', JSON.stringify(cardData, null, 2));
+            console.log('createCard - 转换后数据:', JSON.stringify(convertedData, null, 2));
+
+            const response = await fetch(`${CONFIG.API_URL}/api/cards`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(convertedData)
+            });
+
+            console.log('createCard - 响应状态:', response.status);
+
+            if (!response.ok) {
+                // Try to get error details from response
+                let errorMessage = `HTTP error! status: ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    console.error('Lambda 错误响应:', errorData);
+                    errorMessage += ` - ${JSON.stringify(errorData)}`;
+                } catch (e) {
+                    // If response is not JSON, try to get text
+                    try {
+                        const errorText = await response.text();
+                        console.error('Lambda 错误文本:', errorText);
+                        errorMessage += ` - ${errorText}`;
+                    } catch (e2) {
+                        console.error('无法读取错误响应');
+                    }
+                }
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
+            console.log('createCard - 成功响应:', data);
+
+            // No longer adding to user-cards table - simplified to single user
+            return data;
+        }
+
+        async function loadAllCards() {
+            const container = document.getElementById('allCardsContainer');
+            container.innerHTML = '<div class="loading">Loading cards...</div>';
+
+            try {
+                const response = await fetch(`${CONFIG.API_URL}/api/cards`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                const data = await response.json();
+                // Handle both array and object format
+                const cards = Array.isArray(data) ? data : (data.cards || []);
+
+                // Cache cards for recommendations
+                allCardsCache = cards;
+
+                if (cards.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <div>No cards found</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const cardsHTML = cards.map(card => {
+                    const cashbackText = card.cashback_categories ?
+                        Object.entries(card.cashback_categories)
+                            .slice(0, 2)
+                            .map(([key, value]) => `${value.description}`)
+                            .join(', ') : 'No cashback info';
+
+                    return `
+                        <div class="card-item">
+                            <div class="card-item-title">${card.card_name || 'Unknown Card'}</div>
+                            <div class="card-item-bank">${card.bank || 'Unknown Bank'}</div>
+                            <div class="card-item-cashback">${cashbackText}</div>
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = `<div class="card-grid">${cardsHTML}</div>`;
+
+            } catch (error) {
+                console.error('Error:', error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">❌</div>
+                        <div>Failed to load cards</div>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadMyCards() {
+            const container = document.getElementById('myCardsContainer');
+            container.innerHTML = '<div class="loading">Loading your cards...</div>';
+
+            try {
+                // Now reading from cards table instead of user-cards
+                const response = await fetch(`${CONFIG.API_URL}/api/cards`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                const data = await response.json();
+                // Handle both array and object format
+                const cards = Array.isArray(data) ? data : (data.cards || []);
+
+                if (cards.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">💳</div>
+                            <div>No cards in your wallet yet</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const cardsHTML = cards.map(card => {
+                    const cashbackText = card.cashback_categories ?
+                        Object.entries(card.cashback_categories)
+                            .slice(0, 2)
+                            .map(([key, value]) => `${value.description}`)
+                            .join(', ') : 'No cashback info';
+
+                    return `
+                        <div class="card-item">
+                            <div class="card-item-title">${card.card_name || 'Unknown Card'}</div>
+                            <div class="card-item-bank">${card.bank || 'Unknown Bank'}</div>
+                            <div class="card-item-cashback">${cashbackText}</div>
+                            <button class="btn-delete" onclick="removeCard('${card.card_id}')">🗑️ Remove</button>
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = `<div class="card-grid">${cardsHTML}</div>`;
+
+            } catch (error) {
+                console.error('Error:', error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">❌</div>
+                        <div>Failed to load your cards</div>
+                    </div>
+                `;
+            }
+        }
+
+        async function removeCard(cardId) {
+            if (!confirm('Remove this card?')) return;
+
+            try {
+                const response = await fetch(`${CONFIG.API_URL}/api/cards/${cardId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                showAlert('Card removed successfully!', 'success');
+                loadMyCards();
+                loadAllCards();
+
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('Failed to remove card: ' + error.message, 'error');
+            }
+        }
+
+        // ========== Initialize ==========
+        window.onload = function() {
+            loadAllCards();
+            addCashbackCategory(); // Add one initial category
+        };
+    </script>
+</body>
+</html>
